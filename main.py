@@ -50,22 +50,22 @@ def cur_mouse_g_pos():
     gpos = (m_x//CELL_W,m_y//CELL_H)
     return gpos
 # State
-def is_valid_move(cur_cel,col,gpos):
-    if abs(cur_cel[0] - gpos[0]) > 1:
+def is_valid_move(pos,col,gpos=None):
+    ymax = 2 if col == G_W else 0
+    yinc = 1 if col == G_W else -1
+    op = G_B if col == G_W else G_W
+    if pos[1] == ymax:
         return False
-    if col==G_W: # W - r0
-        return (G[gpos[1]][gpos[0]]==G_B and gpos[1] - cur_cel[1] == 1) \
-                or (gpos[0]==cur_cel[0]  and gpos[1]-cur_cel[1]==1)
-    elif col==G_B: # B - r2
-        return (G[gpos[1]][gpos[0]]==G_W and cur_cel[1]-gpos[1] == 1) \
-                or (gpos[0]==cur_cel[0]  and cur_cel[1]-gpos[1]==1)
-#
+    left=(pos[0]-1,pos[1]+yinc) if pos[0] > 0 else None
+    right=(pos[0]+1,pos[1]+yinc) if pos[0] < 2 else None
+    center=(pos[0],pos[1]+yinc)
+    return (left and G[left[1]][left[0]]==op and (gpos==left if gpos else True)) \
+            or (right and G[right[1]][right[0]]==op and (gpos==right if gpos else True)) \
+            or (G[center[1]][center[0]]==G_EMPTY and (gpos==center if gpos else True))
+
 def has_valid_move(pos,col):
-    if col == G_W:
-        return pos[1] != 2
-    elif col == G_B:
-        return pos[1] != 0
-#
+    return is_valid_move(pos,col)
+
 def is_draw():
     b_stuck,w_stuck=1,1
     for ii in range(BOARD_DIM[1]):
@@ -95,10 +95,10 @@ def update_state(gpos):
     if (not cur_cel or G[cur_cel[1]][cur_cel[0]]==player) and G[gpos[1]][gpos[0]] == player:
         cur_cel=gpos
         return
-    elif not cur_cel: 
+    if not cur_cel: 
         # Wait for player to click cel to continue
         return
-    elif G[gpos[1]][gpos[0]] != player and is_valid_move(cur_cel,player,gpos):
+    if is_valid_move(cur_cel,player,gpos):
         is_atk=G[gpos[1]][gpos[0]]==op 
         # Move pc
         G[gpos[1]][gpos[0]]=player
