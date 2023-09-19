@@ -94,7 +94,6 @@ def update_state(gpos):
     op     = G_B if player==G_W else G_W
     if (not cur_cel or G[cur_cel[1]][cur_cel[0]]==player) and G[gpos[1]][gpos[0]] == player:
         cur_cel=gpos
-        print(cur_cel)
         return
     elif not cur_cel: 
         # Wait for player to click cel to continue
@@ -124,7 +123,7 @@ def render_grid():
                 pygame.draw.rect(WINDOW,pcol,[(jj*CELL_W)+((CELL_W-P_DIM[0])//2),(ii*CELL_H)+((CELL_H-P_DIM[1])//2),P_DIM[0],P_DIM[1]],0)
 # Mouse hover
 def render_cur_mouse(gpos):
-    pygame.draw.rect(WINDOW,G_HOV_COL,[gpos[0]*CELL_W,gpos[1]*CELL_H,CELL_W,CELL_H],1)
+    pygame.draw.rect(WINDOW,G_HOV_COL,[gpos[0]*CELL_W,gpos[1]*CELL_H,CELL_W,CELL_H],3)
 # Click UI
 CL_ACC=0
 CL_CUR_GP=None
