@@ -172,8 +172,6 @@ def board_tostring():
     return res
 ## CPU -- White
 def do_move_w():
-    if is_draw():
-        return 
     w=[]
     for ii in range(BOARD_DIM[1]):
         for jj in range(BOARD_DIM[0]):
@@ -201,7 +199,7 @@ while 1:
     if acc < FR_TIME_MS:
         continue
     acc=0
-    if cur_GS==GS_B:
+    if cur_GS==GS_B or cur_GS==GS_FIN:
         # Input
         gpos=cur_mouse_g_pos()
         click=False
