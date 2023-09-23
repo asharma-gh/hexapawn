@@ -3,6 +3,7 @@
 # 3 x 3 Chess with only Pawns ##
 ################################
 import pygame
+import random
 import numpy as np
 import math as m
 #
@@ -88,8 +89,21 @@ def increment_state():
     elif cur_GS == GS_FIN:
         cur_GS=GS_B
 #
+def do_move(pc,col,gpos):
+    global SCORE_W,SCORE_B
+    is_atk=G[gpos[1]][gpos[0]]==(G_B if col==G_W else G_W) 
+    # Move pc
+    G[gpos[1]][gpos[0]]=col
+    G[pc[1]][pc[0]]=G_EMPTY
+    if is_atk:
+        if col == G_W:
+            SCORE_W += 1
+        else:
+            SCORE_B += 1    
+    increment_state()
+#
 def update_state(gpos):
-    global cur_cel,SCORE_W,SCORE_B
+    global cur_cel
     player = G_W if cur_GS==GS_W else G_B
     op     = G_B if player==G_W else G_W
     if (not cur_cel or G[cur_cel[1]][cur_cel[0]]==player) and G[gpos[1]][gpos[0]] == player:
@@ -99,17 +113,8 @@ def update_state(gpos):
         # Wait for player to click cel to continue
         return
     if is_valid_move(cur_cel,player,gpos):
-        is_atk=G[gpos[1]][gpos[0]]==op 
-        # Move pc
-        G[gpos[1]][gpos[0]]=player
-        G[cur_cel[1]][cur_cel[0]]=G_EMPTY
-        if is_atk:
-            if player == G_W:
-                SCORE_W += 1
-            else:
-                SCORE_B += 1
+        do_move(cur_cel,player,gpos)
         cur_cel=None
-        increment_state()
 # Draw
 def render_grid():
     for ii in range(G.shape[0]): # R - Y
@@ -158,6 +163,31 @@ def render_text_ui():
         txtPlayer=FONT.render("Player " + ("A" if cur_GS==GS_W else "B" if cur_GS==GS_B else "") + " Turn",True,(255,255,255))
         _,_,tw,th=txtPlayer.get_rect()
         WINDOW.blit(txtPlayer,((SCREEN_DIM[0]-tw)//2, 0 if cur_GS==GS_W else SCREEN_DIM[1]-25))
+### Non-Gameplay Functions
+def board_tostring():
+    res=""
+    for ii in range(BOARD_DIM[1]):
+        for jj in range(BOARD_DIM[0]):
+            res += "W" if G[ii][jj]==G_W else "B" if G[ii][jj]==G_B else "-"
+    return res
+## CPU -- White
+def do_move_w():
+    if is_draw():
+        return 
+    w=[]
+    for ii in range(BOARD_DIM[1]):
+        for jj in range(BOARD_DIM[0]):
+            if G[ii][jj]==G_W:
+                w.append([jj,ii])
+    random.shuffle(w)
+    for pc in w:
+        moves=[(pc[0]-1,pc[1]+1),(pc[0],pc[1]+1),(pc[0]+1,pc[1]+1)]
+        random.shuffle(moves)
+        for move in moves:
+            if is_valid_move(pc,G_W,move):
+                do_move(pc,G_W,move)
+                return
+###
 # Loop
 prev_fr=0
 acc=0
@@ -171,24 +201,29 @@ while 1:
     if acc < FR_TIME_MS:
         continue
     acc=0
+    if cur_GS==GS_B:
+        # Input
+        gpos=cur_mouse_g_pos()
+        click=False
+        for e in pygame.event.get():
+            if e.type==pygame.MOUSEBUTTONUP and not cur_click:
+                click=True
+            if e.type==pygame.QUIT:
+                exit(0)
+        # State
+        if click:
+            update_state(gpos)
+    elif cur_GS==GS_W:
+        do_move_w()
     # BG
     render_grid()
-    # Input
-    gpos=cur_mouse_g_pos()
-    click=False
-    for e in pygame.event.get():
-        if e.type==pygame.MOUSEBUTTONUP and not cur_click:
-            click=True
-        if e.type==pygame.QUIT:
-            exit(0)
-    # State
-    if click:
-        update_state(gpos)
     # UI
     render_cur_mouse(gpos)
-    if cur_click or click:
+    if cur_click or click and cur_GS != GS_FIN:
         cur_click = render_click(gpos)
     render_cur_sel()
     render_text_ui()
     pygame.display.update()
+    if cur_GS==GS_W: # Delay to slow down CPU move
+        pygame.time.wait(100)
 
