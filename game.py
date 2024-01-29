@@ -15,7 +15,8 @@ SCREEN_DIM=(750,600)
 BOARD_DIM=(3,3)
 CELL_W,CELL_H=SCREEN_DIM[0]//BOARD_DIM[0],SCREEN_DIM[1]//BOARD_DIM[1]
 # Grid State
-G_EMPTY,G_W,G_B=0,1,2
+G_EMPTY=0
+G_W,G_B=1,2
 G=np.zeros(shape=(BOARD_DIM[1],BOARD_DIM[0]),dtype='uint8')
 C_LIGHT=(200,150,75)
 C_DARK=(125,75,37)
@@ -32,7 +33,7 @@ B_PAWN=(0,0,0)
 GS_W=0
 GS_B=1
 GS_FIN=2
-GS_RESET=3
+GS_FORCE_QUIT=3
 #
 cur_GS=GS_B
 cur_cel=None
@@ -42,9 +43,18 @@ SCORE_W,SCORE_B=0,0
 FONT=pygame.font.SysFont('Arial',25)
 # Init
 def init_grid():
+    global G
     for ii in range(0,3):
         G[0][ii]=G_W
         G[2][ii]=G_B
+def reset_state():
+    global G,cur_GS,cur_cel,cur_winner,SCORE_W,SCORE_B
+    G=np.zeros(shape=G.shape,dtype='uint8')
+    cur_GS=GS_B
+    cur_cel=None
+    cur_winner=None
+    SCORE_W,SCORE_B=0,0
+    init_grid()
 # Input
 def cur_mouse_g_pos():
     m_x,m_y = pygame.mouse.get_pos()
@@ -171,28 +181,31 @@ def board_tostring():
         for jj in range(BOARD_DIM[0]):
             res += "W" if G[ii][jj]==G_W else "B" if G[ii][jj]==G_B else "-"
     return res
-## CPU -- White
-def do_move_w():
-    w=[]
+#
+def do_move_cpu(col):
+    pawns=[]
     for ii in range(BOARD_DIM[1]):
         for jj in range(BOARD_DIM[0]):
-            if G[ii][jj]==G_W:
-                w.append([jj,ii])
-    random.shuffle(w)
-    for pc in w:
-        moves=[(pc[0]-1,pc[1]+1),(pc[0],pc[1]+1),(pc[0]+1,pc[1]+1)]
+            if G[ii][jj]==col:
+                pawns.append([jj,ii])
+    random.shuffle(pawns)
+    yinc = 1 if col == G_W else -1
+    for pc in pawns:
+        moves=[(pc[0]-1,pc[1]+yinc),(pc[0],pc[1]+yinc),(pc[0]+1,pc[1]+yinc)]
         random.shuffle(moves)
         for move in moves:
-            if is_valid_move(pc,G_W,move):
-                do_move(pc,G_W,move)
+            if is_valid_move(pc,col,move):
+                do_move(pc,col,move)
                 return
 # RL Setup
-def get_possible_moves_w(gpos):
-    yinc=1
+def get_possible_moves(gpos,col):
+    yinc = 1 if col == G_W else -1
+    if (col==G_W and gpos[1]==2) or (col==G_B and gpos[1]==0):
+        return
     left=(gpos[0]-1,gpos[1]+yinc) if gpos[0] > 0 else None
     right=(gpos[0]+1,gpos[1]+yinc) if gpos[0] < 2 else None
     center=(gpos[0],gpos[1]+yinc)
-    op=G_B
+    op = G_B if col == G_W else G_W
     res=[]
     if (left and G[left[1]][left[0]]==op):
         res.append(left)
@@ -201,26 +214,43 @@ def get_possible_moves_w(gpos):
     if (G[center[1]][center[0]]==G_EMPTY):
         res.append(center)
     return [x + (y*BOARD_DIM[1]) for x,y in res] # return result as int for model
-
-#########
-# Game Loop
+#
+#
+#
+def reset_window():
+    global WINDOW
+    WINDOW.fill((255,255,255))
+#
 def init_window():
     global WINDOW
     WINDOW=pygame.display.set_mode(SCREEN_DIM)
-    WINDOW.fill((255,255,255))
+    reset_window()
 #
-def on_tick(dt):
-    cur_click=False
-    if cur_GS==GS_B or cur_GS==GS_FIN:
+def on_tick(dt,autoplay):
+    for e in pygame.event.get():
+        if e.type==pygame.QUIT:
+            if cur_GS==GS_FIN:
+                # Return end state
+                return (GS_FIN,cur_winner == G_B)
+            else:
+                return (GS_FORCE_QUIT,None)
+    if cur_GS==GS_FIN:
+        if autoplay:
+            prev_winner=cur_winner
+            reset_state()
+            reset_window()
+            pygame.time.wait(100)
+            return (GS_FIN,prev_winner)
+    elif cur_GS==GS_B and autoplay:
+        do_move_cpu(G_B)
+    elif cur_GS==GS_B:
+        cur_click=False
         # Input
         gpos=cur_mouse_g_pos()
         click=False
         for e in pygame.event.get():
             if e.type==pygame.MOUSEBUTTONUP and not cur_click:
                 click=True
-            if e.type==pygame.QUIT:
-                # Return end state
-                return (GS_FIN,cur_winner == G_B if cur_winner else None)
         if cur_click or click and cur_GS != GS_FIN:
             cur_click = render_click(gpos)
             # State
@@ -228,6 +258,7 @@ def on_tick(dt):
                 update_state(gpos)
     elif cur_GS==GS_W:
         return (GS_W,board_tostring())
+    
     return None
 #
 def render():
