@@ -47,6 +47,7 @@ def init_grid():
     for ii in range(0,3):
         G[0][ii]=G_W
         G[2][ii]=G_B
+#
 def reset_state():
     global G,cur_GS,cur_cel,cur_winner,SCORE_W,SCORE_B
     G=np.zeros(shape=G.shape,dtype='uint8')
@@ -143,9 +144,10 @@ def render_cur_mouse():
 # Click UI
 CL_ACC=0
 CL_CUR_GP=None
-def render_click(gpos):
+def render_click():
     global CL_ACC,CL_CUR_GP
-    CL_CUR_GP = gpos if not CL_CUR_GP else CL_CUR_GP
+    if not CL_CUR_GP:
+        return False
     CL_CUR_ST = 10 - (m.floor(CL_ACC) ** 2)
     if CL_CUR_ST<=0:
         CL_ACC=0
@@ -227,38 +229,32 @@ def init_window():
     reset_window()
 #
 def on_tick(dt,autoplay):
+    global CL_CUR_GP
+    old_gpos=CL_CUR_GP
     for e in pygame.event.get():
         if e.type==pygame.QUIT:
             if cur_GS==GS_FIN:
                 # Return end state
-                return (GS_FIN,cur_winner == G_B)
+                return (GS_FIN,cur_winner)
             else:
                 return (GS_FORCE_QUIT,None)
+        elif e.type==pygame.MOUSEBUTTONUP:
+            if cur_GS==GS_B:
+                CL_CUR_GP=cur_mouse_g_pos()
     if cur_GS==GS_FIN:
         if autoplay:
             prev_winner=cur_winner
             reset_state()
             reset_window()
-            pygame.time.wait(100)
+            pygame.time.wait(10)
             return (GS_FIN,prev_winner)
     elif cur_GS==GS_B and autoplay:
         do_move_cpu(G_B)
     elif cur_GS==GS_B:
-        cur_click=False
-        # Input
-        gpos=cur_mouse_g_pos()
-        click=False
-        for e in pygame.event.get():
-            if e.type==pygame.MOUSEBUTTONUP and not cur_click:
-                click=True
-        if cur_click or click and cur_GS != GS_FIN:
-            cur_click = render_click(gpos)
-            # State
-            if click:
-                update_state(gpos)
+        if (old_gpos != CL_CUR_GP) and (cur_GS != GS_FIN):
+            update_state(CL_CUR_GP)
     elif cur_GS==GS_W:
         return (GS_W,board_tostring())
-    
     return None
 #
 def render():
@@ -267,6 +263,7 @@ def render():
     # UI
     render_cur_mouse()
     render_cur_sel()
+    render_click()
     render_text_ui()
     pygame.display.update()
 

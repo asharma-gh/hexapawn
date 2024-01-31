@@ -2,7 +2,9 @@ import random
 import pickle
 from time import sleep
 from game import BOARD_DIM,get_possible_moves,G_W
-MODEL_FILENAME="RL_HEXAGAME_00.pkl"
+MODEL_FILENAME  ="RL_HEXAPAWN_MODEL_00.pkl"
+RESULTS_FILENAME="HEXAPAWN_RES_00.pkl"
+RESULTS_THRESHOLD=10
 # Usage:
 # Load Model -> Loop[ Update Model -> Do Move ] -> (Win/Lose) Learn -> Serialize
 #
@@ -14,6 +16,8 @@ MODEL_FILENAME="RL_HEXAGAME_00.pkl"
 model={}
 # [(Board State, (Pawn,MoveIdx)]
 moves_so_far=[]
+#
+results_so_far=[]
 #
 def idx_to_xy(idx):
     return (idx%BOARD_DIM[1],idx//BOARD_DIM[1])
@@ -31,12 +35,12 @@ def update_model(bs):
     for pawn in pawns:
         moves=get_possible_moves(idx_to_xy(pawn),G_W)
         if moves:
-            model[bs].append((pawn,moves))
+            # Store three copies of each move for RL
+            model[bs].append((pawn,moves*3))
 #
 def gen_move(bs):
     global moves_so_far
     if bs in model:
-        print(model[bs])
         pawn_moves=[0,[]]
         while len(pawn_moves[1])==0:
             pawn_moves=model[bs][random.randint(0,len(model[bs])-1)]
@@ -48,6 +52,8 @@ def gen_move(bs):
 # Perform Reinforcement learning: 
 #  - Award winning moves,remove losing moves.
 def learn(did_win):
+    print(f"RESULT {did_win}")
+    results_so_far.append(did_win)
     for move in moves_so_far:
         for ii,pawn_move in enumerate(model[move[0]]):
             if pawn_move[0]==move[1][0]: # Find moves for this pawn
@@ -61,6 +67,14 @@ def learn(did_win):
                             if prevm==move[1][1]:
                                 del model[move[0]][ii][1][jj]
                                 break
+#
+def log_results():
+    if len(results_so_far) < RESULTS_THRESHOLD:
+        return
+    res_fh=open(RESULTS_FILENAME,"wb")
+    print(f"RECORDING RESULTS - {RESULTS_FILENAME}")
+    pickle.dump(results_so_far,res_fh,protocol=pickle.HIGHEST_PROTOCOL)
+    res_fh.close()
 #
 def serialize_model():
     model_fh=open(MODEL_FILENAME,"wb")
