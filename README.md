@@ -1,6 +1,6 @@
-# hexapawn
+# Hexapawn
 reinforcement learning with 3x3 chess!
 ![](./content/demo.gif)
 
-
-TODO: Add AI
+## Results
+![](./content/aiperf.png)
